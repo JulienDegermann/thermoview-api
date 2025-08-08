@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+    api:
+        build:
+            context: ./api
+            dockerfile: Dockerfile
+        container_name: thermoview-api
+        ports:
+            - "8000:80"
+        volumes:
+            - ./api:/var/www/html
+            - ./api/var:/var/www/html/var
+        environment:
+            - DATABASE_URL=postgresql://thermoview:thermoview@database:5432/thermoview
+            - APP_ENV=dev
+            - APP_SECRET=your-secret-key-here
+        depends_on:
+            - database
+        networks:
+            - thermoview-network
+
+    database:
+        image: postgres:15-alpine
+        container_name: thermoview-database
+        ports:
+            - "5432:5432"
+        environment:
+            - POSTGRES_DB=thermoview
+            - POSTGRES_USER=thermoview
+            - POSTGRES_PASSWORD=thermoview
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        networks:
+            - thermoview-network
+
+networks:
+    thermoview-network:
+        external: true
+
+volumes:
+    postgres_data:

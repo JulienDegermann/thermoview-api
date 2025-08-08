@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  # MailHog for development mail testing
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: thermoview-mailhog
+    ports:
+      - "1025:1025"  # SMTP port
+      - "8025:8025"  # Web UI port
+    networks:
+      - thermoview-network
+
+  # Override API environment for development
+  api:
+    environment:
+      - MAILER_DSN=smtp://mailhog:1025
+      - MESSENGER_TRANSPORT_DSN=doctrine://default 
