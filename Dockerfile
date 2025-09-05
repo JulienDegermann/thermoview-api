@@ -1,49 +1,53 @@
-FROM php:8.2-apache
+FROM php:8.3-apache-bookworm
 
-# Install system dependencies
+
+RUN docker-php-ext-install pdo_mysql
+
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    libpng-dev \
-    libonig-dev \
-    libxml2-dev \
+    libicu-dev \
+    && openssl \
+    && a2enmod ssl\
+    && docker-php-ext-configure intl \
+    && docker-php-ext-install intl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Installer l'extension zip
+RUN apt-get update && apt-get install -y \
     libzip-dev \
-    zip \
     unzip \
-    libpq-dev \
-    && docker-php-ext-install pdo pdo_pgsql mbstring exif pcntl bcmath gd zip
+    && docker-php-ext-install zip \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# install nodejs & npm
+RUN apt-get update && apt-get install -y \
+    nodejs \
+    npm \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
-WORKDIR /var/www/html
+# Composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Copy composer files
-COPY composer.json composer.lock* ./
+# Symfony CLI 
+RUN curl -sS https://get.symfony.com/cli/installer | bash \
+    && mv /root/.symfony*/bin/symfony /usr/local/bin/symfony
 
-# Install dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
-
-# Copy application files
-COPY . .
-
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html/var
-
-# Enable Apache mod_rewrite
 RUN a2enmod rewrite
 
-# Configure Apache
-RUN echo '<Directory /var/www/html/public>\n\
-    AllowOverride All\n\
-    Require all granted\n\
-</Directory>' > /etc/apache2/conf-available/docker-php.conf \
-    && a2enconf docker-php
+COPY ./docker.sh /var/opt/docker.sh
+COPY ./apache.conf /etc/apache2/sites-available/000-default.conf
+COPY . /var/www/html
 
-# Expose port 80
+
+# Donner les bonnes permissions et propriétaires
+RUN chown -R www-data:www-data /var/www/html
+RUN chmod -R 755 /var/www/html
+
+
+
+RUN chmod +x /var/opt/docker.sh
+ENTRYPOINT ["/var/opt/docker.sh"]
+
+WORKDIR /var/www/html
+
 EXPOSE 80
-
-# Start Apache
-CMD ["apache2-foreground"] 
